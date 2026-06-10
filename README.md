@@ -41,7 +41,7 @@
 | `VAPID_PUBLIC_KEY` | Run `npx web-push generate-vapid-keys` |
 | `VAPID_PRIVATE_KEY` | Same command as above |
 
-### Step 3 — Deploy to Vercel
+### Step 3 — Deploy to Netlify
 
 **Option A — GitHub (recommended)**
 
@@ -49,22 +49,25 @@
 git init
 git add .
 git commit -m "Initial FridgeGuard deploy"
-# push to GitHub, then import at vercel.com/new
+# Push to GitHub, then go to app.netlify.com → Add new site → Import from Git
+# Netlify auto-detects netlify.toml — build command and publish dir are pre-filled
 ```
 
-**Option B — Vercel CLI**
+**Option B — Netlify CLI**
 
 ```bash
-npm i -g vercel
-vercel
+npm i -g netlify-cli
+netlify login
+netlify deploy --prod
 ```
 
-### Step 4 — Add environment variables in Vercel
+### Step 4 — Add environment variables in Netlify
 
-In your Vercel project → **Settings → Environment Variables**, add all 5 keys from Step 2.
+In your Netlify site → **Site configuration → Environment variables**, add all 5 keys from Step 2.
 
-> ⚠️ `ANTHROPIC_API_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` are **server-only** — do NOT prefix with `VITE_`.  
-> `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` must have the `VITE_` prefix so Vite injects them into the browser bundle.
+> ⚠️ `ANTHROPIC_API_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` are **server-only** (Functions env).  
+> `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` need the `VITE_` prefix so Vite injects them into the browser bundle.  
+> In Netlify you can set scope to **"All"** — both build-time and Functions pick up the same vars.
 
 ### Step 5 — Set up the expiry check (optional but recommended)
 
@@ -83,7 +86,7 @@ supabase functions schedule check-expiry --schedule "0 8 * * *"
 supabase secrets set VAPID_PUBLIC_KEY=your_key VAPID_PRIVATE_KEY=your_key
 ```
 
-**Your app is now live at `https://your-app.vercel.app` 🎉**
+**Your app is now live at `https://your-app.netlify.app` 🎉**
 
 ---
 
@@ -99,13 +102,13 @@ npm install
 cp .env.example .env.local
 # Edit .env.local with your Supabase URL and anon key
 
-# Start dev server (uses Vercel CLI to also run serverless functions)
-npx vercel dev
-# OR just the frontend (API calls will 404 without backend):
+# Start dev server (uses Netlify CLI to also run Functions locally)
+npx netlify dev
+# OR just the frontend (API calls will fail without Functions):
 npm run dev
 ```
 
-> **Recommended local dev:** Use `npx vercel dev` — it boots both the Vite frontend and the `/api` serverless functions locally, mirroring the production environment exactly.
+> **Recommended local dev:** Use `npx netlify dev` — it boots both the Vite dev server and the Netlify Functions locally on port 8888, with all redirects from `netlify.toml` active. This mirrors production exactly.
 
 ---
 
@@ -113,20 +116,19 @@ npm run dev
 
 ```
 fridgeguard/
-├── api/                        Vercel serverless functions
-│   ├── _lib/
-│   │   ├── supabase.js         Supabase client factory (with user JWT)
-│   │   └── utils.js            Shared helpers (computeStatus, CORS, etc.)
-│   ├── items/
-│   │   ├── index.js            GET list + POST create
-│   │   └── [id]/
-│   │       ├── index.js        GET single + PUT update + DELETE
-│   │       └── consume.js      POST mark as used
-│   ├── parse.js                POST AI receipt parsing (Claude)
-│   ├── settings.js             GET + PUT user settings
-│   ├── notifications.js        GET + PATCH + DELETE
-│   ├── push-subscription.js    Save/remove Web Push subscriptions
-│   └── stats.js                GET weekly stats
+├── netlify/
+│   └── functions/              Netlify serverless functions
+│       ├── _lib/
+│       │   ├── supabase.js     Supabase client factory (with user JWT)
+│       │   └── utils.js        Shared helpers — json(), cors(), getBody(), getIdFromPath()
+│       ├── items.js            GET /api/items + POST /api/items
+│       ├── items-id.js         GET/PUT/DELETE /api/items/:id
+│       ├── items-consume.js    POST /api/items/:id/consume
+│       ├── parse.js            POST /api/parse  (Claude AI)
+│       ├── settings.js         GET + PUT /api/settings
+│       ├── notifications.js    GET + PATCH + DELETE /api/notifications
+│       ├── push-subscription.js GET/POST/DELETE /api/push-subscription
+│       └── stats.js            GET /api/stats
 ├── src/                        React frontend
 │   ├── lib/
 │   │   ├── supabase.js         Supabase browser client
@@ -155,6 +157,7 @@ fridgeguard/
 ├── public/
 │   └── sw.js                   Service worker (push notifications)
 ├── vercel.json                 Vercel config + SPA rewrites
+├── netlify.toml                Netlify build config + /api/* redirects + SPA catch-all
 ├── vite.config.js
 └── .env.example
 ```

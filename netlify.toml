@@ -1,0 +1,66 @@
+[build]
+  command       = "npm run build"
+  publish       = "dist"           # Vite output directory (flat v2 structure)
+
+[functions]
+  directory        = "netlify/functions"
+  node_bundler     = "esbuild"     # fast ESM-aware bundler
+  included_files   = ["netlify/functions/_lib/**"]
+
+# ── API redirects ─────────────────────────────────────────────────────────────
+# IMPORTANT: order matters — Netlify matches the FIRST rule that fits.
+# More-specific paths must come before less-specific ones.
+
+# /api/items/:id/consume  →  items-consume function
+[[redirects]]
+  from   = "/api/items/:id/consume"
+  to     = "/.netlify/functions/items-consume"
+  status = 200
+
+# /api/items/:id  →  items-id function
+[[redirects]]
+  from   = "/api/items/:id"
+  to     = "/.netlify/functions/items-id"
+  status = 200
+
+# /api/items  →  items function
+[[redirects]]
+  from   = "/api/items"
+  to     = "/.netlify/functions/items"
+  status = 200
+
+# /api/parse  →  parse function
+[[redirects]]
+  from   = "/api/parse"
+  to     = "/.netlify/functions/parse"
+  status = 200
+
+# /api/settings  →  settings function
+[[redirects]]
+  from   = "/api/settings"
+  to     = "/.netlify/functions/settings"
+  status = 200
+
+# /api/notifications  →  notifications function
+[[redirects]]
+  from   = "/api/notifications"
+  to     = "/.netlify/functions/notifications"
+  status = 200
+
+# /api/stats  →  stats function
+[[redirects]]
+  from   = "/api/stats"
+  to     = "/.netlify/functions/stats"
+  status = 200
+
+# /api/push-subscription  →  push-subscription function
+[[redirects]]
+  from   = "/api/push-subscription"
+  to     = "/.netlify/functions/push-subscription"
+  status = 200
+
+# ── SPA catch-all — must be LAST ──────────────────────────────────────────────
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
