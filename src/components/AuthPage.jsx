@@ -50,8 +50,11 @@ export default function AuthPage() {
   const [showConfirmPw,  setShowConfirmPw]  = useState(false)
   const [loading,        setLoading]        = useState(false)
   const [signedUpEmail,  setSignedUpEmail]  = useState('')
+  const [resendLoading,  setResendLoading]  = useState(false)
+  const [resendSent,     setResendSent]     = useState(false)
+  const [resendError,    setResendError]    = useState('')
 
-  // Switch tabs and reset step/passwords
+  // Switch tabs and reset step/passwords/resend state
   const switchTab = (t) => {
     setTab(t)
     setStep('form')
@@ -59,6 +62,8 @@ export default function AuthPage() {
     setConfirmPw('')
     setShowPw(false)
     setShowConfirmPw(false)
+    setResendSent(false)
+    setResendError('')
   }
 
   // ── Login submit ──────────────────────────────────────────────
@@ -77,6 +82,15 @@ export default function AuthPage() {
   }
 
   // ── Signup submit ─────────────────────────────────────────────
+  //
+  // IMPORTANT — Supabase Dashboard checklist (do this once per project):
+  //   1. Authentication → Settings → "Enable email confirmations" must be ON
+  //   2. Authentication → Settings → "Site URL" = your Netlify URL
+  //      e.g. https://fridgeguard.netlify.app
+  //   3. Authentication → Settings → "Redirect URLs" allowlist must include
+  //      your Netlify URL (and http://localhost:5173 for local dev)
+  //   4. Authentication → Email Templates → "Confirm signup" must not be empty
+  //
   const handleSignup = async (e) => {
     e.preventDefault()
     if (password !== confirmPw) {
@@ -89,9 +103,31 @@ export default function AuthPage() {
     }
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) throw error
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // Supabase uses this URL in the verification email link.
+          // Without it the email may redirect to localhost or be blocked.
+          emailRedirectTo: window.location.origin,
+        },
+      })
+
+      if (error) {
+        console.error('Signup error:', error)
+        throw error
+      }
+
+      // Supabase returns a fake success (no error, but empty identities array)
+      // when email confirmations are ON and the email is already registered.
+      // Detect it so we can show a meaningful message instead of a blank screen.
+      if (data.user?.identities?.length === 0) {
+        throw new Error('An account with this email already exists. Try signing in instead.')
+      }
+
       setSignedUpEmail(email)
+      setResendSent(false)
+      setResendError('')
       setStep('verifyEmail')
     } catch (err) {
       toast.error(err.message || 'Sign up failed')
@@ -114,6 +150,28 @@ export default function AuthPage() {
       toast.error(err.message || 'Failed to send reset email')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ── Resend verification email ─────────────────────────────────
+  const handleResend = async () => {
+    setResendLoading(true)
+    setResendError('')
+    setResendSent(false)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: signedUpEmail,
+        options: { emailRedirectTo: window.location.origin },
+      })
+      if (error) {
+        console.error('Resend error:', error)
+        setResendError(error.message)
+      } else {
+        setResendSent(true)
+      }
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -147,16 +205,36 @@ export default function AuthPage() {
           >
             <ArrowLeft size={15} /> Back to Login
           </button>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Didn't receive it? Check your spam folder or{' '}
-            <button
-              className="underline"
-              style={{ color: 'var(--sage)' }}
-              onClick={() => supabase.auth.resend({ type: 'signup', email: signedUpEmail })}
-            >
-              resend
-            </button>.
-          </p>
+
+          {/* ── Resend section ── */}
+          {resendSent ? (
+            <p className="text-xs font-medium" style={{ color: 'var(--sage)' }}>
+              ✓ Verification email resent! Check your spam folder too.
+            </p>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5">
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                Didn't get the email?{' '}
+                <button
+                  className="underline font-medium"
+                  style={{ color: 'var(--sage)' }}
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                >
+                  {resendLoading
+                    ? <><Loader2 size={11} className="inline animate-spin mr-0.5" />Sending…</>
+                    : 'Resend verification email'
+                  }
+                </button>
+              </p>
+              {resendError && (
+                <p className="text-xs" style={{ color: 'var(--red)' }}>{resendError}</p>
+              )}
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                Check your <strong>spam/junk folder</strong> if you don't see it within 2 minutes.
+              </p>
+            </div>
+          )}
         </div>
       </AuthShell>
     )
