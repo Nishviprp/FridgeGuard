@@ -77,6 +77,88 @@ export function getGroupedTimezones() {
   return groups
 }
 
+// ─── Location APIs ───────────────────────────────────────────────────────────
+
+/**
+ * Reverse-geocode lat/lng → { location, timezone, city, region, country }
+ *
+ * Uses BigDataCloud (free, no key needed):
+ *   https://api.bigdatacloud.net/data/reverse-geocode-client
+ *
+ * On any failure silently falls back to browser Intl timezone with an empty
+ * location string so nothing downstream breaks.
+ */
+export async function getLocationFromCoords(lat, lng) {
+  try {
+    const url =
+      `https://api.bigdatacloud.net/data/reverse-geocode-client` +
+      `?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+
+    const city    = data.city || data.locality || ''
+    const region  = data.principalSubdivision || ''
+    const country = data.countryName || ''
+    // BigDataCloud returns timezone directly — prefer it over Intl
+    const timezone =
+      data.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    const location = [city, region, country].filter(Boolean).join(', ')
+    return { location, timezone, city, region, country }
+  } catch {
+    // Silent fallback — Intl gives the browser's local timezone
+    return {
+      location: '',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      city: '', region: '', country: '',
+    }
+  }
+}
+
+/**
+ * City autocomplete via Open-Meteo geocoding API (free, no key):
+ *   https://geocoding-api.open-meteo.com/v1/search
+ *
+ * Returns up to 5 results, each with:
+ *   { id, name, admin1, country, timezone, displayName }
+ *
+ * Returns [] on empty query, no results, or any network error (silent).
+ */
+export async function searchCities(query) {
+  if (!query?.trim() || query.trim().length < 2) return []
+
+  try {
+    const url =
+      `https://geocoding-api.open-meteo.com/v1/search` +
+      `?name=${encodeURIComponent(query.trim())}&count=5&language=en&format=json`
+
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+
+    if (!Array.isArray(data.results) || !data.results.length) return []
+
+    return data.results.map(r => ({
+      id:          r.id,
+      name:        r.name         || '',
+      admin1:      r.admin1       || '',
+      country:     r.country      || '',
+      timezone:    r.timezone     || '',
+      lat:         r.latitude,
+      lng:         r.longitude,
+      // Pre-built display string, e.g. "Mumbai, Maharashtra, India"
+      displayName: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+    }))
+  } catch {
+    return []   // silent — caller shows "No cities found" via empty array
+  }
+}
+
+// ─── Dropdown helpers (kept for any future use) ───────────────────────────────
+
 // Prioritised region order for the dropdown
 export const REGION_ORDER = [
   'America', 'Europe', 'Asia', 'Africa',
