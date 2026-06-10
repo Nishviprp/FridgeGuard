@@ -16,7 +16,7 @@ const STATUSES = [
   { key: 'expired', label: '💀 Expired'      },
 ]
 
-export default function Dashboard({ session, onStatsChange }) {
+export default function Dashboard({ session, onStatsChange, timezone }) {
   const [items, setItems]               = useState([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -151,21 +151,28 @@ export default function Dashboard({ session, onStatsChange }) {
             style={{ paddingLeft: '2.2rem' }}
           />
         </div>
+        {/* Action buttons — wrap on very narrow screens */}
         <div className="flex gap-2 flex-wrap">
           <button className="btn-ghost text-sm" onClick={fetchItems} title="Refresh">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button className="btn-ghost text-sm" onClick={exportCSV}>
-            <Download size={14} /> Export
+          {/* Hide Export + Scan Bill text on xs, show icon only */}
+          <button className="btn-ghost text-sm" onClick={exportCSV} title="Export CSV">
+            <Download size={14} />
+            <span className="hidden sm:inline">Export</span>
           </button>
-          <button className="btn-ghost text-sm" onClick={() => setShowScanner(true)}>
-            <ScanLine size={14} /> Scan Bill
+          <button className="btn-ghost text-sm" onClick={() => setShowScanner(true)} title="Scan grocery bill">
+            <ScanLine size={14} />
+            <span className="hidden sm:inline">Scan Bill</span>
           </button>
           <button
             className="btn-primary text-sm"
             onClick={() => { setEditItem(null); setShowAddModal(true) }}
           >
-            <Plus size={14} /> Add Item <kbd className="opacity-60 text-xs ml-1">N</kbd>
+            <Plus size={14} />
+            <span className="hidden sm:inline">Add Item</span>
+            <span className="sm:hidden">Add</span>
+            <kbd className="opacity-60 text-xs ml-1 hidden sm:inline">N</kbd>
           </button>
         </div>
       </div>
@@ -227,6 +234,7 @@ export default function Dashboard({ session, onStatsChange }) {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onConsume={handleConsume}
+              timezone={timezone}
             />
           ))}
         </div>

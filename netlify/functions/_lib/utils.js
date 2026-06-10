@@ -100,4 +100,5 @@ export const DEFAULT_SETTINGS = {
   sound_enabled:     'true',
   dark_mode:         'false',
   avg_cost_per_item: '3.00',
+  timezone:          'UTC',   // overridden client-side via Intl auto-detect on first save
 }

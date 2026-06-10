@@ -2,32 +2,32 @@ import { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { Moon, Sun, BarChart2, Settings as SettingsIcon, Home, Loader2 } from 'lucide-react'
 
-import { useAuth } from './hooks/useAuth.js'
-import { useSettings } from './hooks/useSettings.js'
+import { useAuth }          from './hooks/useAuth.js'
+import { useSettings }      from './hooks/useSettings.js'
 import { useNotifications } from './hooks/useNotifications.js'
+import { getAutoTimezone }  from './lib/timezone.js'
 
-import AuthPage from './components/AuthPage.jsx'
-import Dashboard from './components/Dashboard.jsx'
-import NotificationBell from './components/NotificationBell.jsx'
-import OnboardingModal from './components/OnboardingModal.jsx'
-import StatsWidget from './components/StatsWidget.jsx'
-import Settings from './pages/Settings.jsx'
-import Stats from './pages/Stats.jsx'
+import AuthPage          from './components/AuthPage.jsx'
+import Dashboard         from './components/Dashboard.jsx'
+import NotificationBell  from './components/NotificationBell.jsx'
+import OnboardingModal   from './components/OnboardingModal.jsx'
+import StatsWidget       from './components/StatsWidget.jsx'
+import Settings          from './pages/Settings.jsx'
+import Stats             from './pages/Stats.jsx'
 
 const ONBOARDING_KEY = 'fg_onboarded_v2'
 
 export default function App() {
   const { session, user, loading: authLoading, signOut } = useAuth()
-  const { settings, loading: settingsLoading, updateSetting, updateSettings } =
-    useSettings(session)
-  const { notifications, unreadCount, markAllRead, clearAll } =
-    useNotifications(session)
+  const { settings, loading: settingsLoading, updateSetting, updateSettings } = useSettings(session)
+  const { notifications, unreadCount, markAllRead, clearAll } = useNotifications(session)
 
-  const [page, setPage] = useState('home')
+  const [page,           setPage]           = useState('home')
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [statsKey, setStatsKey] = useState(0)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showScanner, setShowScanner] = useState(false)
+  const [statsKey,       setStatsKey]       = useState(0)
+
+  // Derive timezone from settings (fallback to browser auto-detect)
+  const timezone = settings.timezone || getAutoTimezone()
 
   // Dark mode
   const darkMode = settings.dark_mode === 'true'
@@ -35,7 +35,7 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
-  // Show onboarding for new sessions
+  // First-run onboarding
   useEffect(() => {
     if (session && !settingsLoading && !localStorage.getItem(ONBOARDING_KEY)) {
       setShowOnboarding(true)
@@ -47,7 +47,7 @@ export default function App() {
     setShowOnboarding(false)
   }
 
-  // ── Loading spinner ─────────────────────────────────────────────
+  // ── Loading ─────────────────────────────────────────────────────
   if (authLoading) {
     return (
       <div
@@ -62,10 +62,10 @@ export default function App() {
     )
   }
 
-  // ── Auth gate ───────────────────────────────────────────────────
+  // ── Auth gate ────────────────────────────────────────────────────
   if (!session) return <AuthPage />
 
-  // ── Main app ────────────────────────────────────────────────────
+  // ── Main app ─────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Toaster
@@ -75,6 +75,7 @@ export default function App() {
             background: 'var(--surface)',
             color: 'var(--text)',
             border: '1px solid var(--border)',
+            fontSize: '0.875rem',
           },
           duration: 3000,
         }}
@@ -85,30 +86,39 @@ export default function App() {
         className="sticky top-0 z-40 border-b"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
+        <div
+          className="max-w-6xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2"
+        >
+          {/* Logo — hide wordmark on tiny screens */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-2xl">🧊</span>
-            <span className="font-bold text-lg tracking-tight" style={{ color: 'var(--text)' }}>
+            <span
+              className="font-bold text-lg tracking-tight hidden xs:block"
+              style={{ color: 'var(--text)' }}
+            >
               FridgeGuard
             </span>
           </div>
 
-          {/* Nav */}
-          <nav className="flex items-center gap-1">
+          {/* Nav — icons always visible, labels hidden on mobile */}
+          <nav className="flex items-center gap-0.5 sm:gap-1">
             {[
-              { id: 'home',     icon: <Home size={16} />,         label: 'Fridge'   },
-              { id: 'stats',    icon: <BarChart2 size={16} />,    label: 'Stats'    },
-              { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
+              { id: 'home',     icon: <Home size={18} />,         label: 'Fridge'   },
+              { id: 'stats',    icon: <BarChart2 size={18} />,    label: 'Stats'    },
+              { id: 'settings', icon: <SettingsIcon size={18} />, label: 'Settings' },
             ].map(item => (
               <button
                 key={item.id}
                 onClick={() => setPage(item.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-1.5 rounded-lg font-medium transition-colors"
                 style={{
-                  background: page === item.id ? 'rgba(124,174,122,0.15)' : 'transparent',
-                  color: page === item.id ? 'var(--sage)' : 'var(--muted)',
+                  padding:     '8px 10px',
+                  minHeight:   44,
+                  background:  page === item.id ? 'rgba(124,174,122,0.15)' : 'transparent',
+                  color:       page === item.id ? 'var(--sage)' : 'var(--muted)',
+                  fontSize:   '0.875rem',
                 }}
+                aria-label={item.label}
               >
                 {item.icon}
                 <span className="hidden sm:inline">{item.label}</span>
@@ -117,7 +127,7 @@ export default function App() {
           </nav>
 
           {/* Right controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <NotificationBell
               notifications={notifications}
               unreadCount={unreadCount}
@@ -127,8 +137,9 @@ export default function App() {
             <button
               onClick={() => updateSetting('dark_mode', darkMode ? 'false' : 'true')}
               className="btn-ghost"
-              style={{ padding: '8px' }}
+              style={{ padding: '8px', minHeight: 44, minWidth: 44 }}
               title="Toggle dark mode"
+              aria-label="Toggle dark mode"
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -136,13 +147,17 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Main content ── */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      {/* ── Main ── */}
+      <main
+        className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6"
+        style={{ paddingBottom: `max(1.5rem, env(safe-area-inset-bottom))` }}
+      >
         {page === 'home' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5 sm:gap-6">
             <StatsWidget refreshKey={statsKey} session={session} />
             <Dashboard
               session={session}
+              timezone={timezone}
               onStatsChange={() => setStatsKey(k => k + 1)}
             />
           </div>
@@ -158,7 +173,6 @@ export default function App() {
         )}
       </main>
 
-      {/* ── Onboarding ── */}
       {showOnboarding && (
         <OnboardingModal
           onClose={closeOnboarding}
