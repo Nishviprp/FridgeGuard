@@ -3,6 +3,38 @@ import { supabase } from '../lib/supabase.js'
 import { Loader2, LogIn, UserPlus, Eye, EyeOff, Mail, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// ── Defined at TOP LEVEL so React sees a stable reference across renders ──────
+// If this were inside AuthPage, every keystroke would create a new component
+// identity → React unmounts+remounts the input → focus lost after each character.
+
+function PwField({ label, value, onChange, show, onToggle, autoComplete, placeholder }) {
+  return (
+    <div>
+      <label className="form-label">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder || '••••••••'}
+          autoComplete={autoComplete}
+          required
+          style={{ paddingRight: '2.75rem' }}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2"
+          style={{ color: 'var(--muted)', lineHeight: 0 }}
+          tabIndex={-1}
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Views:
  *  tab  = 'login' | 'signup'         (which tab is shown)
@@ -84,33 +116,6 @@ export default function AuthPage() {
       setLoading(false)
     }
   }
-
-  // ── PW input helper ───────────────────────────────────────────
-  const PwField = ({ label, value, onChange, show, onToggle, autoComplete, placeholder }) => (
-    <div>
-      <label className="form-label">{label}</label>
-      <div className="relative">
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder || '••••••••'}
-          autoComplete={autoComplete}
-          required
-          style={{ paddingRight: '2.75rem' }}
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2"
-          style={{ color: 'var(--muted)', lineHeight: 0 }}
-          tabIndex={-1}
-        >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-      </div>
-    </div>
-  )
 
   // ═══════════════════════════════════════════════════════════════
   //  Confirmation screens (no tab bar)
