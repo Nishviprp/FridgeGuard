@@ -1,0 +1,28 @@
+{
+  "name": "fridgeguard",
+  "version": "2.0.0",
+  "description": "Smart fridge & pantry tracker — Vercel + Supabase",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "canvas-confetti": "^1.9.3",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.5.2",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.7",
+    "@vitejs/plugin-react": "^4.4.1",
+    "tailwindcss": "^4.1.7",
+    "vite": "^6.3.5"
+  }
+}

@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.db
+*.sqlite
+
+# Vercel
+.vercel/
+
+# Supabase
+supabase/.temp/
+supabase/functions/.deploy/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
