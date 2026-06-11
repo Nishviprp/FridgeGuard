@@ -18,7 +18,7 @@ export const handler = async (event) => {
 
   // ── GET — VAPID public key ─────────────────────────────────────
   if (event.httpMethod === 'GET') {
-    return json(200, { publicKey: process.env.VAPID_PUBLIC_KEY || '' })
+    return json(200, { vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '' })
   }
 
   // ── POST — save subscription ───────────────────────────────────
