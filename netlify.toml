@@ -1,62 +1,74 @@
 [build]
   command       = "npm run build"
-  publish       = "dist"           # Vite output directory (flat v2 structure)
+  publish       = "dist"
 
 [functions]
   directory        = "netlify/functions"
-  node_bundler     = "esbuild"     # fast ESM-aware bundler
+  node_bundler     = "esbuild"
   included_files   = ["netlify/functions/_lib/**"]
 
-# ── API redirects ─────────────────────────────────────────────────────────────
-# IMPORTANT: order matters — Netlify matches the FIRST rule that fits.
-# More-specific paths must come before less-specific ones.
+# ── Scheduled functions (cron) ────────────────────────────────────────────────
+# Both run daily at 8:00 AM UTC.
+# Netlify Background Functions required for scheduled tasks:
+#   https://docs.netlify.com/functions/scheduled-functions/
 
-# /api/items/:id/consume  →  items-consume function
+[functions."send-expiry-emails"]
+  schedule = "@daily"
+
+[functions."send-push-notifications"]
+  schedule = "@daily"
+
+# ── API redirects ─────────────────────────────────────────────────────────────
+# IMPORTANT: order matters — most specific paths must come first.
+
 [[redirects]]
   from   = "/api/items/:id/consume"
   to     = "/.netlify/functions/items-consume"
   status = 200
 
-# /api/items/:id  →  items-id function
 [[redirects]]
   from   = "/api/items/:id"
   to     = "/.netlify/functions/items-id"
   status = 200
 
-# /api/items  →  items function
 [[redirects]]
   from   = "/api/items"
   to     = "/.netlify/functions/items"
   status = 200
 
-# /api/parse  →  parse function
 [[redirects]]
   from   = "/api/parse"
   to     = "/.netlify/functions/parse"
   status = 200
 
-# /api/settings  →  settings function
 [[redirects]]
   from   = "/api/settings"
   to     = "/.netlify/functions/settings"
   status = 200
 
-# /api/notifications  →  notifications function
 [[redirects]]
   from   = "/api/notifications"
   to     = "/.netlify/functions/notifications"
   status = 200
 
-# /api/stats  →  stats function
 [[redirects]]
   from   = "/api/stats"
   to     = "/.netlify/functions/stats"
   status = 200
 
-# /api/push-subscription  →  push-subscription function
 [[redirects]]
   from   = "/api/push-subscription"
   to     = "/.netlify/functions/push-subscription"
+  status = 200
+
+[[redirects]]
+  from   = "/api/test-notifications"
+  to     = "/.netlify/functions/test-notifications"
+  status = 200
+
+[[redirects]]
+  from   = "/api/unsubscribe"
+  to     = "/.netlify/functions/unsubscribe"
   status = 200
 
 # ── SPA catch-all — must be LAST ──────────────────────────────────────────────

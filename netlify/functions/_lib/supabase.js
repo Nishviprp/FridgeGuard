@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL      = process.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL          = process.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY     = process.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 /**
  * Creates a Supabase client authenticated with the user's JWT.
@@ -16,6 +17,20 @@ export function getSupabaseClient(event) {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
     auth:   { persistSession: false },
+  })
+}
+
+/**
+ * Admin Supabase client — uses the service role key so it bypasses RLS.
+ * ONLY use in scheduled / background functions, never in user-request handlers.
+ * Requires SUPABASE_SERVICE_ROLE_KEY env var (never expose to the browser).
+ */
+export function getAdminClient() {
+  if (!SUPABASE_SERVICE_ROLE) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY env var is not set')
+  }
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+    auth: { autoRefreshToken: false, persistSession: false },
   })
 }
 

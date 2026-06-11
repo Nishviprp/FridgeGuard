@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Save, Bell, BellOff, Volume2, VolumeX,
-  DollarSign, LogOut, MapPin, Locate, Search, Loader2, X,
+  DollarSign, LogOut, MapPin, Locate, Search, Loader2, X, Mail, Smartphone,
 } from 'lucide-react'
 import { settingsApi, pushApi } from '../lib/api.js'
 import {
   getAutoTimezone, getTzAbbr,
   getLocationFromCoords, searchCities,
 } from '../lib/timezone.js'
+import { usePushNotifications } from '../hooks/usePushNotifications.js'
 import toast from 'react-hot-toast'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,14 +292,17 @@ function LocationPicker({ value, onChange }) {
 // Settings page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Settings({ settings, updateSettings, user, onSignOut }) {
+  const push = usePushNotifications()
+
   const [form, setForm] = useState({
-    default_lead_time: '2',
-    digest_time:       '08:00',
-    push_enabled:      'false',
-    sound_enabled:     'true',
-    avg_cost_per_item: '3.00',
-    timezone:          getAutoTimezone(),
-    location:          '',
+    default_lead_time:   '2',
+    digest_time:         '08:00',
+    push_enabled:        'false',
+    sound_enabled:       'true',
+    avg_cost_per_item:   '3.00',
+    timezone:            getAutoTimezone(),
+    location:            '',
+    email_notifications: 'true',
   })
 
   useEffect(() => {
@@ -329,22 +333,20 @@ export default function Settings({ settings, updateSettings, user, onSignOut }) 
     }
   }
 
-  const requestNotifications = async () => {
-    if (!('Notification' in window)) { toast.error('Browser does not support notifications'); return }
-    const perm = await Notification.requestPermission()
-    if (perm === 'granted') {
+  const handleEnablePush = async () => {
+    const ok = await push.subscribe()
+    if (ok) {
       setForm(f => ({ ...f, push_enabled: 'true' }))
-      await settingsApi.update({ push_enabled: 'true' })
       toast.success('Push notifications enabled!')
-    } else {
-      toast.error('Permission denied. Check browser settings.')
+    } else if (push.error) {
+      toast.error(push.error)
     }
   }
 
-  const disableNotifications = async () => {
+  const handleDisablePush = async () => {
+    await push.unsubscribe()
     setForm(f => ({ ...f, push_enabled: 'false' }))
-    await pushApi.remove().catch(() => {})
-    toast.success('Notifications disabled')
+    toast.success('Push notifications disabled')
   }
 
   const handleSignOut = async () => {
@@ -390,53 +392,93 @@ export default function Settings({ settings, updateSettings, user, onSignOut }) 
         />
       </div>
 
-      {/* ── Reminders ── */}
-      <div className="card p-5 flex flex-col gap-4">
-        <h3 className="font-semibold" style={{ color: 'var(--text)' }}>⏰ Reminders</h3>
-        <div>
-          <label className="form-label">Default reminder lead time</label>
-          <select value={form.default_lead_time} onChange={set('default_lead_time')}>
-            {[1, 2, 3, 5, 7, 14].map(d => (
-              <option key={d} value={d}>{d} day{d > 1 ? 's' : ''} before expiry</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="form-label">Daily digest time (in your timezone)</label>
-          <input type="time" value={form.digest_time} onChange={set('digest_time')} />
-          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-            The edge function runs in UTC — it converts using your saved timezone.
-          </p>
-        </div>
-      </div>
-
       {/* ── Notifications ── */}
       <div className="card p-5 flex flex-col gap-4">
         <h3 className="font-semibold" style={{ color: 'var(--text)' }}>🔔 Notifications</h3>
-        <div className="flex items-center justify-between gap-4">
+
+        {/* Email alerts */}
+        <div className="flex items-start justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="min-w-0">
-            <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>
-              Browser Push Notifications
-            </p>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Mail size={14} style={{ color: 'var(--sage)' }} />
+              <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>Email Alerts</p>
+            </div>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              Alerts even when the app is in background
+              Daily digest of expiring items via Resend
             </p>
           </div>
-          {form.push_enabled === 'true' ? (
-            <button onClick={disableNotifications} className="btn-ghost text-sm flex-shrink-0">
-              <BellOff size={15} /> Disable
-            </button>
-          ) : (
-            <button onClick={requestNotifications} className="btn-primary text-sm flex-shrink-0">
-              <Bell size={15} /> Enable
-            </button>
+          <button
+            onClick={() => {
+              const next = form.email_notifications === 'true' ? 'false' : 'true'
+              setForm(f => ({ ...f, email_notifications: next }))
+            }}
+            className={form.email_notifications === 'true' ? 'btn-primary text-sm flex-shrink-0' : 'btn-ghost text-sm flex-shrink-0'}
+          >
+            {form.email_notifications === 'true' ? <><Mail size={13} /> On</> : <><Mail size={13} /> Off</>}
+          </button>
+        </div>
+
+        {/* Push notifications */}
+        <div className="flex items-start justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Smartphone size={14} style={{ color: 'var(--sage)' }} />
+              <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>Push Notifications</p>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              Alerts even when the app is closed
+            </p>
+            {!push.isSupported && (
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                Not supported in this browser
+              </p>
+            )}
+            {push.error && (
+              <p className="text-xs mt-0.5" style={{ color: 'var(--red)' }}>{push.error}</p>
+            )}
+          </div>
+          {push.isSupported && (
+            push.isSubscribed || form.push_enabled === 'true' ? (
+              <button
+                onClick={handleDisablePush}
+                disabled={push.loading}
+                className="btn-ghost text-sm flex-shrink-0"
+              >
+                {push.loading ? <Loader2 size={13} className="animate-spin" /> : <BellOff size={13} />}
+                {push.loading ? 'Disabling…' : 'Disable'}
+              </button>
+            ) : (
+              <button
+                onClick={handleEnablePush}
+                disabled={push.loading}
+                className="btn-primary text-sm flex-shrink-0"
+              >
+                {push.loading ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                {push.loading ? 'Enabling…' : 'Enable'}
+              </button>
+            )
           )}
         </div>
+
+        {/* Remind lead time (applies to both email and push) */}
+        <div>
+          <label className="form-label">
+            ⏰ Remind me — days before expiry
+          </label>
+          <select value={form.default_lead_time} onChange={set('default_lead_time')}>
+            {[1, 2, 3, 5, 7, 14].map(d => (
+              <option key={d} value={d}>{d} day{d > 1 ? 's' : ''} before</option>
+            ))}
+          </select>
+          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+            Applies to both email digests and push alerts
+          </p>
+        </div>
+
+        {/* Sound toggle */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>
-              Notification Sounds
-            </p>
+            <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>In-app Sounds</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>Play a sound for in-app alerts</p>
           </div>
           <button

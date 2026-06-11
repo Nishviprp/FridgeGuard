@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { Moon, Sun, BarChart2, Settings as SettingsIcon, Home, Loader2 } from 'lucide-react'
 
@@ -6,6 +6,7 @@ import { useAuth }          from './hooks/useAuth.js'
 import { useSettings }      from './hooks/useSettings.js'
 import { useNotifications } from './hooks/useNotifications.js'
 import { getAutoTimezone }  from './lib/timezone.js'
+import { itemsApi }         from './lib/api.js'
 
 import AuthPage          from './components/AuthPage.jsx'
 import Dashboard         from './components/Dashboard.jsx'
@@ -25,6 +26,7 @@ export default function App() {
   const [page,           setPage]           = useState('home')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [statsKey,       setStatsKey]       = useState(0)
+  const [todayCount,     setTodayCount]     = useState(0)   // items expiring today
 
   // Derive timezone from settings (fallback to browser auto-detect)
   const timezone = settings.timezone || getAutoTimezone()
@@ -34,6 +36,24 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
+
+  // Register service worker for push notifications
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
+    }
+  }, [])
+
+  // Fetch "expiring today" count for the banner
+  const refreshTodayCount = useCallback(async () => {
+    if (!session) return
+    try {
+      const items = await itemsApi.getAll({ status: 'today' })
+      setTodayCount(Array.isArray(items) ? items.length : 0)
+    } catch { /* silent */ }
+  }, [session])
+
+  useEffect(() => { refreshTodayCount() }, [refreshTodayCount])
 
   // First-run onboarding
   useEffect(() => {
@@ -155,10 +175,30 @@ export default function App() {
         {page === 'home' && (
           <div className="flex flex-col gap-5 sm:gap-6">
             <StatsWidget refreshKey={statsKey} session={session} />
+
+            {/* ── Expiry-today banner ── */}
+            {todayCount > 0 && (
+              <div
+                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border fade-in"
+                style={{ background: '#FEF2F2', borderColor: '#FECACA' }}
+              >
+                <p className="text-sm font-medium" style={{ color: '#991B1B' }}>
+                  ⚠️ {todayCount} item{todayCount !== 1 ? 's' : ''} expire{todayCount === 1 ? 's' : ''} today!
+                </p>
+                <button
+                  onClick={() => setPage('home')}
+                  className="text-xs font-semibold underline flex-shrink-0"
+                  style={{ color: '#E05C5C' }}
+                >
+                  View →
+                </button>
+              </div>
+            )}
+
             <Dashboard
               session={session}
               timezone={timezone}
-              onStatsChange={() => setStatsKey(k => k + 1)}
+              onStatsChange={() => { setStatsKey(k => k + 1); refreshTodayCount() }}
             />
           </div>
         )}
